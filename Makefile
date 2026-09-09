@@ -154,8 +154,14 @@ UPROGS=\
 	$U/_fsinfo\
 	$U/_print_itree\
 	$U/_bigfiletest\
-	$U/_maxfiletest\
+	$U/_bigfile\
 	$U/_trunctest\
+	$U/_bigfile\
+#	$U/_symlinktest\
+#	$U/_nofollowtest\
+#	$U/_symlink\
+
+# Uncomment the three lines above after implementing symlinks (Section 5).
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

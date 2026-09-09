@@ -1,8 +1,6 @@
-// Block reference-count infrastructure for CS3500 File System Lab.
+// bref.c -- block reference-count helpers.
 //
-// Each data block has a ushort reference count stored in the refcount
-// region of the disk. The functions below read and modify those counts
-// through the buffer cache.
+// Each data block has a ushort refcount in the refcount region on disk.
 
 #include "types.h"
 #include "riscv.h"
@@ -18,7 +16,6 @@
 
 extern struct superblock sb;
 
-// Return the current reference count of block b.
 ushort
 brefget(uint dev, uint b)
 {
@@ -33,8 +30,6 @@ brefget(uint dev, uint b)
   return count;
 }
 
-// Set the reference count of block b to n.
-// Must be called inside a transaction.
 void
 brefset(uint dev, uint b, ushort n)
 {
@@ -48,8 +43,6 @@ brefset(uint dev, uint b, ushort n)
   brelse(bp);
 }
 
-// Increment the reference count of block b. Returns the new count.
-// Panics on overflow. Must be called inside a transaction.
 ushort
 brefinc(uint dev, uint b)
 {
@@ -68,8 +61,6 @@ brefinc(uint dev, uint b)
   return count + 1;
 }
 
-// Decrement the reference count of block b. Returns the new count.
-// Panics if the count is already zero. Must be called inside a transaction.
 ushort
 brefdec(uint dev, uint b)
 {
@@ -88,4 +79,4 @@ brefdec(uint dev, uint b)
   return count - 1;
 }
 
-#endif // CLONE_OFF
+#endif

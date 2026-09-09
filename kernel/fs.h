@@ -67,12 +67,12 @@ struct dirent {
   char name[DIRSIZ] __attribute__((nonstring));
 };
 
-// Information returned by the CS3500 istat system call.
+// Returned by the istat syscall.
 struct istat_info {
   struct superblock sb;
   uint inum;
   short type;
   short nlink;
   uint size;
-  uint addrs[13]; // always 13 slots to match on-disk inode
+  uint addrs[13];
 };

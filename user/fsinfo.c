@@ -18,26 +18,27 @@ main(int argc, char *argv[])
     exit(1);
   }
 
-  printf("filesystem:\n");
-  printf("  size        %d\n", info.sb.size);
-  printf("  nblocks     %d\n", info.sb.nblocks);
-  printf("  ninodes     %d\n", info.sb.ninodes);
-  printf("  nlog        %d\n", info.sb.nlog);
-  printf("  logstart    %d\n", info.sb.logstart);
-  printf("  inodestart  %d\n", info.sb.inodestart);
-  printf("  bmapstart   %d\n", info.sb.bmapstart);
-  printf("  refstart    %d\n", info.sb.refstart);
+  printf("superblock: size %d nblocks %d ninodes %d nlog %d\n",
+         info.sb.size, info.sb.nblocks, info.sb.ninodes, info.sb.nlog);
+  printf("            logstart %d inodestart %d bmapstart %d refstart %d\n",
+         info.sb.logstart, info.sb.inodestart, info.sb.bmapstart, info.sb.refstart);
+  printf("\n");
 
-  printf("inode:\n");
-  printf("  inum        %d\n", info.inum);
-  printf("  type        %d\n", info.type);
-  printf("  nlink       %d\n", info.nlink);
-  printf("  size        %d\n", info.size);
+  printf("inode %d: type %d nlink %d size %d\n",
+         info.inum, info.type, info.nlink, info.size);
 
-  for (int i = 0; i < 13; i++) {
-    if (info.addrs[i] != 0)
-      printf("  addr[%d]     %d\n", i, info.addrs[i]);
+  // Print direct block addresses in a 3-column table.
+  int rows = (NDIRECT + 2) / 3;
+  for (int row = 0; row < rows; row++) {
+    printf("  ");
+    for (int col = 0; col < 3; col++) {
+      int i = row + col * rows;
+      if (i < NDIRECT)
+        printf("addrs[%-2d] = %-5d ", i, info.addrs[i]);
+    }
+    printf("\n");
   }
+  printf("  addrs[NDIRECT] = %d\n", info.addrs[NDIRECT]);
 
   exit(0);
 }

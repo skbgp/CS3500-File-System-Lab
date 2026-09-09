@@ -748,16 +748,15 @@ nameiparent(char *path, char *name)
   return namex(path, 1, name);
 }
 
-// Return a copy of the superblock for use by system calls.
+// Copy the in-memory superblock into *out.
 void
 get_superblock(struct superblock *out)
 {
   *out = sb;
 }
 
-// Print the block tree rooted at an inode.
-// The caller must hold ip->lock.
-// TODO: Students implement this (Section 3 of the lab).
+// Print the block tree of ip.
+// Caller must hold ip->lock.
 void
 itreeprint(struct inode *ip)
 {

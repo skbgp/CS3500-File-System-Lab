@@ -19,13 +19,13 @@ main(void)
 
   fd = open("maxfile", O_CREATE | O_WRONLY);
   if(fd < 0){
-    printf("maxfiletest: open failed\n");
+    printf("bigfile: open failed\n");
     exit(1);
   }
 
   while(blocks + WRITE_BLOCKS <= MAX_BLOCKS){
     if(write(fd, buf, sizeof(buf)) != sizeof(buf)){
-      printf("maxfiletest: write failed at block %d\n", blocks);
+      printf("bigfile: write failed at block %d\n", blocks);
       close(fd);
       exit(1);
     }
@@ -35,7 +35,7 @@ main(void)
 
   while(blocks < MAX_BLOCKS){
     if(write(fd, buf, BSIZE) != BSIZE){
-      printf("maxfiletest: final write failed at block %d\n", blocks);
+      printf("bigfile: final write failed at block %d\n", blocks);
       close(fd);
       exit(1);
     }
@@ -44,7 +44,7 @@ main(void)
 
   close(fd);
 
-  printf("maxfiletest: created %d blocks\n", blocks);
+  printf("bigfile: created %d blocks\n", blocks);
   printf("expected size: %d bytes\n", MAX_BLOCKS * BSIZE);
 
   exit(0);

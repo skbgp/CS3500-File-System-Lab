@@ -1,8 +1,7 @@
-// Block reference-count interface for CS3500 File System Lab.
+// bref.h -- block reference counts.
 //
-// Remove the CLONE_OFF define below to enable clone support.
-// With CLONE_OFF defined, balloc/bfree do not touch reference counts
-// and the clone system call is not compiled.
+// Remove CLONE_OFF to enable clone support.
+// While defined, balloc/bfree skip reference counts entirely.
 
 #define CLONE_OFF
 
@@ -13,4 +12,4 @@ void   brefset(uint dev, uint b, ushort n);
 ushort brefinc(uint dev, uint b);
 ushort brefdec(uint dev, uint b);
 
-#endif // CLONE_OFF
+#endif
