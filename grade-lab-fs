@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+
+#
+# CS3500 File System Lab - Public Grading Script
+#
+# Usage: python3 grade-lab-fs
+#
+# Students: run this to check your score on the public test cases.
+# The autograder may run additional private tests.
+#
+
+import subprocess, sys, re, time, os, signal
+
+TOTAL = 0
+POSSIBLE = 0
+TIMEOUT = 300  # seconds per test
+
+class colors:
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
+
+def run_qemu_test(command, expect_patterns, timeout=TIMEOUT, expect_fail=False):
+    """Boot xv6, run command, check output against patterns."""
+    # Build first
+    try:
+        subprocess.run(["make", "fs.img"], capture_output=True, timeout=120)
+    except Exception:
+        pass
+
+    q = ["make", "qemu"]
+    proc = subprocess.Popen(q, stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+    os.set_blocking(proc.stdout.fileno(), False)
+
+    time.sleep(3)  # wait for boot
+
+    # Send command
+    if isinstance(command, str):
+        command = command.encode('utf-8')
+    proc.stdin.write(command + b"\n")
+    proc.stdin.flush()
+
+    # Collect output
+    output = bytearray()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        time.sleep(0.5)
+        try:
+            buf = os.read(proc.stdout.fileno(), 8192)
+            if buf:
+                output.extend(buf)
+                text = output.decode("utf-8", "replace")
+                # Check if we have all patterns or a prompt after command
+                all_found = all(re.search(p, text, re.MULTILINE) for p in expect_patterns)
+                if all_found:
+                    break
+        except BlockingIOError:
+            pass
+
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+    text = output.decode("utf-8", "replace")
+    all_found = all(re.search(p, text, re.MULTILINE) for p in expect_patterns)
+
+    if expect_fail:
+        return not all_found, text
+    return all_found, text
+
+
+def test(points, name, command, patterns, expect_fail=False):
+    global TOTAL, POSSIBLE
+    POSSIBLE += points
+    sys.stdout.write(f"  {name}... ")
+    sys.stdout.flush()
+
+    ok, output = run_qemu_test(command, patterns, expect_fail=expect_fail)
+
+    if ok:
+        TOTAL += points
+        print(f"{colors.GREEN}PASSED ({points}/{points}){colors.END}")
+    else:
+        print(f"{colors.RED}FAILED (0/{points}){colors.END}")
+        # Show relevant output on failure
+        for line in output.splitlines()[-10:]:
+            if line.strip():
+                print(f"    | {line.rstrip()}")
+    return ok
+
+
+def main():
+    print(f"\n{colors.BOLD}CS3500 File System Lab - Public Tests{colors.END}")
+    print("=" * 50)
+
+    # Clean build
+    print("\nBuilding xv6...")
+    result = subprocess.run(["make", "clean"], capture_output=True)
+    result = subprocess.run(["make"], capture_output=True, timeout=120)
+    if result.returncode != 0:
+        print(f"{colors.RED}BUILD FAILED{colors.END}")
+        stderr = result.stderr.decode("utf-8", "replace")
+        for line in stderr.splitlines()[-15:]:
+            print(f"  {line}")
+        sys.exit(1)
+
+    result = subprocess.run(["make", "fs.img"], capture_output=True, timeout=120)
+    if result.returncode != 0:
+        print(f"{colors.RED}BUILD fs.img FAILED{colors.END}")
+        sys.exit(1)
+
+    print(f"{colors.GREEN}Build OK{colors.END}\n")
+
+    # ---- Section 3: itreeprint (10 marks) ----
+    print(f"{colors.BOLD}Section 3: Print inode block tree{colors.END}")
+    test(10, "print_itree produces output",
+         "print_itree README",
+         [r"^inode \d+ type \d+ size \d+"])
+
+    # ---- Section 4: Large files (20 marks) ----
+    print(f"\n{colors.BOLD}Section 4: Large files (doubly-indirect){colors.END}")
+    test(20, "bigfiletest (270 blocks)",
+         "bigfiletest",
+         [r"bigfiletest: created 270 blocks"])
+
+    # ---- Section 5: Symbolic links (20 marks) ----
+    print(f"\n{colors.BOLD}Section 5: Symbolic links{colors.END}")
+    test(20, "symlinktest (create and follow)",
+         "symlinktest",
+         [r"symlinktest: passed"])
+
+    # ---- Summary ----
+    print("\n" + "=" * 50)
+    print(f"{colors.BOLD}Score: {TOTAL}/{POSSIBLE}{colors.END}")
+    if TOTAL == POSSIBLE:
+        print(f"{colors.GREEN}All public tests passed!{colors.END}")
+    else:
+        print(f"{colors.YELLOW}Some tests failed. Review the output above.{colors.END}")
+    print()
+
+
+if __name__ == "__main__":
+    main()

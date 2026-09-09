@@ -185,6 +185,16 @@ QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
+grade: fs.img
+	python3 grade-lab-fs
+
+zipball: 
+	@git diff --name-only --diff-filter=M HEAD | while read f; do echo "M $$f"; done
+	@git ls-files --others --exclude-standard | while read f; do echo "?? $$f"; done
+	@echo ""
+	@read -p "Untracked files will not be handed in.  Continue? [y/N] " ans && [ "$$ans" = y ]
+	git archive --format=zip --prefix=lab/ -o lab.zip HEAD
+
 qemu: check-qemu-version $K/kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 
