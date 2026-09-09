@@ -26,6 +26,7 @@ OBJS = \
   $K/pipe.o \
   $K/exec.o \
   $K/sysfile.o \
+  $K/bref.o \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o
@@ -150,6 +151,11 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_sync\
+	$U/_fsinfo\
+	$U/_print_itree\
+	$U/_bigfiletest\
+	$U/_maxfiletest\
+	$U/_trunctest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

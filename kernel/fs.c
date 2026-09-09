@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
+#include "bref.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with
@@ -80,6 +81,9 @@ balloc(uint dev)
         log_write(bp);
         brelse(bp);
         bzero(dev, b + bi);
+#ifndef CLONE_OFF
+        brefset(dev, b + bi, 1);
+#endif
         return b + bi;
       }
     }
@@ -93,6 +97,10 @@ balloc(uint dev)
 static void
 bfree(int dev, uint b)
 {
+#ifndef CLONE_OFF
+  if (brefget(dev, b) != 0)
+    panic("bfree: refcount not zero");
+#endif
   struct buf *bp;
   int bi, m;
 
@@ -738,4 +746,19 @@ struct inode *
 nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
+}
+
+// Return a copy of the superblock for use by system calls.
+void
+get_superblock(struct superblock *out)
+{
+  *out = sb;
+}
+
+// Print the block tree rooted at an inode.
+// The caller must hold ip->lock.
+// TODO: Students implement this (Section 3 of the lab).
+void
+itreeprint(struct inode *ip)
+{
 }

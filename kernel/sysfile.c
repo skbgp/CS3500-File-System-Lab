@@ -528,3 +528,58 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_istat(void)
+{
+  char path[MAXPATH];
+  uint64 dst;
+  struct inode *ip;
+  struct istat_info info;
+
+  if (argstr(0, path, MAXPATH) < 0)
+    return -1;
+
+  argaddr(1, &dst);
+
+  if ((ip = namei(path)) == 0)
+    return -1;
+
+  ilock(ip);
+
+  get_superblock(&info.sb);
+  info.inum = ip->inum;
+  info.type = ip->type;
+  info.nlink = ip->nlink;
+  info.size = ip->size;
+
+  for (int i = 0; i < 13; i++)
+    info.addrs[i] = (i < NDIRECT + 1) ? ip->addrs[i] : 0;
+
+  iunlockput(ip);
+
+  if (copyout(myproc()->pagetable, myproc()->sz, dst,
+              (char *)&info, sizeof(info)) < 0)
+    return -1;
+
+  return 0;
+}
+
+uint64
+sys_iprint(void)
+{
+  char path[MAXPATH];
+  struct inode *ip;
+
+  if (argstr(0, path, MAXPATH) < 0)
+    return -1;
+
+  if ((ip = namei(path)) == 0)
+    return -1;
+
+  ilock(ip);
+  itreeprint(ip);
+  iunlockput(ip);
+
+  return 0;
+}
