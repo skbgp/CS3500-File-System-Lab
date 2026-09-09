@@ -23,12 +23,14 @@
 #define NINODES 200
 
 // Disk layout:
-// [ boot block | sb block | log | inode blocks | free bit map | data blocks ]
+// [ boot block | sb block | log | inode blocks | free bit map |
+//   reference-count blocks | data blocks ]
 
-int nbitmap = FSSIZE / BPB + 1;
-int ninodeblocks = NINODES / IPB + 1;
+int nbitmap = (FSSIZE + BPB - 1) / BPB;
+int ninodeblocks = (NINODES + IPB - 1) / IPB;
 int nlog = LOGBLOCKS + 1; // Header followed by LOGBLOCKS data blocks.
-int nmeta;   // Number of meta blocks (boot, sb, nlog, inode, bitmap)
+int nrefblocks = (FSSIZE + REFPB - 1) / REFPB;
+int nmeta;   // Number of metadata blocks
 int nblocks; // Number of data blocks
 
 int fsfd;
@@ -93,7 +95,7 @@ main(int argc, char *argv[])
     die(argv[1]);
 
   // 1 fs block = 1 disk sector
-  nmeta = 2 + nlog + ninodeblocks + nbitmap;
+  nmeta = 2 + nlog + ninodeblocks + nbitmap + nrefblocks;
   nblocks = FSSIZE - nmeta;
 
   sb.magic = FSMAGIC;
@@ -104,10 +106,12 @@ main(int argc, char *argv[])
   sb.logstart = xint(2);
   sb.inodestart = xint(2 + nlog);
   sb.bmapstart = xint(2 + nlog + ninodeblocks);
+  sb.refstart = xint(2 + nlog + ninodeblocks + nbitmap);
 
   printf(
-    "nmeta %d (boot, super, log blocks %u, inode blocks %u, bitmap blocks %u) blocks %d total %d\n",
-    nmeta, nlog, ninodeblocks, nbitmap, nblocks, FSSIZE);
+    "nmeta %d (boot, super, log blocks %u, inode blocks %u, "
+    "bitmap blocks %u, refcount blocks %u) blocks %d total %d\n",
+    nmeta, nlog, ninodeblocks, nbitmap, nrefblocks, nblocks, FSSIZE);
 
   freeblock = nmeta; // the first free block that we can allocate
 
@@ -174,6 +178,77 @@ main(int argc, char *argv[])
   winode(rootino, &din);
 
   balloc(freeblock);
+
+  // Initialize the reference-count table.
+  //
+  // A block that is directly named by an inode has one parent.
+  // A block named by an indirect block also has one parent.
+  // The current starter filesystem has only direct and singly-indirect
+  // file blocks. The large-file extension adds the doubly-indirect case.
+  {
+    ushort *refs = calloc(FSSIZE, sizeof(ushort));
+    uint inum;
+
+    if (refs == 0)
+      die("calloc");
+
+    for (inum = 1; inum < freeinode; inum++) {
+      struct dinode di;
+      rinode(inum, &di);
+
+      if (xshort(di.type) == 0)
+        continue;
+
+      int j;
+      for (j = 0; j < NDIRECT; j++) {
+        uint b = xint(di.addrs[j]);
+        if (b != 0)
+          refs[b]++;
+      }
+
+      {
+        uint ib = xint(di.addrs[NDIRECT]);
+        if (ib != 0) {
+          uint indirect[NINDIRECT];
+
+          refs[ib]++;
+
+          rsect(ib, indirect);
+
+          for (j = 0; j < NINDIRECT; j++) {
+            uint b = xint(indirect[j]);
+            if (b != 0)
+              refs[b]++;
+          }
+        }
+      }
+    }
+
+    {
+      uchar refbuf[BSIZE];
+      uint rb;
+
+      for (rb = 0; rb < nrefblocks; rb++) {
+        uint first = rb * REFPB;
+        uint i;
+        uint count = FSSIZE - first;
+
+        if (count > REFPB)
+          count = REFPB;
+
+        bzero(refbuf, BSIZE);
+
+        for (i = 0; i < count; i++) {
+          ushort n = xshort(refs[first + i]);
+          memmove(refbuf + i * sizeof(ushort), &n, sizeof(ushort));
+        }
+
+        wsect(sb.refstart + rb, refbuf);
+      }
+    }
+
+    free(refs);
+  }
 
   exit(0);
 }

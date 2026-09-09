@@ -19,6 +19,7 @@ struct superblock {
   uint logstart;   // Block number of first log block
   uint inodestart; // Block number of first inode block
   uint bmapstart;  // Block number of first free map block
+  uint refstart;   // Block number of first reference-count block
 };
 
 #define FSMAGIC 0x10203040
@@ -49,6 +50,12 @@ struct dinode {
 
 // Block of free map containing bit for block b
 #define BBLOCK(b, sb) ((b) / BPB + sb.bmapstart)
+
+// Number of reference counts stored in one block.
+#define REFPB (BSIZE / sizeof(ushort))
+
+// Block containing the reference count for block b.
+#define RBBLOCK(b, sb) ((b) / REFPB + sb.refstart)
 
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
