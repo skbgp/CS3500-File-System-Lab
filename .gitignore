@@ -28,3 +28,6 @@ lab.zip
 
 # macOS
 .DS_Store
+
+# Generated xv6 system call assembly
+user/usys.S
