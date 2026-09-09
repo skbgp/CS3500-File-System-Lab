@@ -156,7 +156,6 @@ UPROGS=\
 	$U/_bigfiletest\
 	$U/_bigfile\
 	$U/_trunctest\
-	$U/_bigfile\
 #	$U/_symlinktest\
 #	$U/_nofollowtest\
 #	$U/_symlink\
