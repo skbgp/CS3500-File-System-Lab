@@ -1,12 +1,30 @@
-*~
-_*
+# xv6 generated files
 *.o
 *.d
 *.asm
 *.sym
-*.img
-/mkfs/mkfs
-/kernel/kernel
-/user/usys.S
-.gdbinit
-TAGS
+
+# Generated filesystem image
+fs.img
+fs.img.bk
+
+# Generated kernel/user binaries
+kernel/kernel
+mkfs/mkfs
+user/_*
+
+# Generated documentation
+*.aux
+*.dvi
+*.idx
+*.ilg
+*.ind
+*.log
+*.out
+*.toc
+
+# Submission archive
+lab.zip
+
+# macOS
+.DS_Store
