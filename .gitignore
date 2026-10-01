@@ -31,3 +31,7 @@ lab.zip
 
 # Generated xv6 system call assembly
 user/usys.S
+
+# Grader outputs
+__pycache__/
+autograder_results/

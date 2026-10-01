@@ -1,7 +1,10 @@
+#include "kernel/syscall.h"
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "kernel/fcntl.h"
 #include "user/user.h"
+
+#if defined(SYS_symlink) && defined(O_NOFOLLOW)
 
 int
 main(void)
@@ -54,3 +57,7 @@ main(void)
   unlink("target");
   exit(0);
 }
+
+#else
+int main(void) { fprintf(2, "symlink support not implemented\n"); exit(1); }
+#endif

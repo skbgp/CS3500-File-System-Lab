@@ -54,6 +54,7 @@ TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' 
 endif
 
 QEMU = qemu-system-riscv64
+FS_IMAGE ?= fs.img
 MIN_QEMU_VERSION = 7.2
 
 CC = $(TOOLPREFIX)gcc
@@ -156,19 +157,19 @@ UPROGS=\
 	$U/_bigfiletest\
 	$U/_bigfile\
 	$U/_trunctest\
-#	$U/_symlinktest\
-#	$U/_nofollowtest\
-#	$U/_symlink\
+	$U/_symlinktest\
+	$U/_itreetest\
+	$U/_labrun\
+	$U/_nofollowtest\
+	$U/_symlinkloop
 
-# Uncomment the three lines above after implementing symlinks (Section 5).
-
-fs.img: mkfs/mkfs README $(UPROGS)
-	mkfs/mkfs fs.img README $(UPROGS)
+$(FS_IMAGE): mkfs/mkfs README $(UPROGS)
+	mkfs/mkfs $@ README $(UPROGS)
 
 -include kernel/*.d user/*.d
 
 clean: 
-	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
+	rm -f *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*.d */*.asm */*.sym \
 	$K/kernel fs.img \
 	mkfs/mkfs .gdbinit \
@@ -187,10 +188,10 @@ endif
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
-QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
+QEMUOPTS += -drive file=$(FS_IMAGE),if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
-grade: fs.img
+grade:
 	python3 grade-lab-fs
 
 zipball: 
@@ -200,7 +201,7 @@ zipball:
 	@read -p "Untracked files will not be handed in.  Continue? [y/N] " ans && [ "$$ans" = y ]
 	git archive --format=zip --prefix=lab/ -o lab.zip HEAD
 
-qemu: check-qemu-version $K/kernel fs.img
+qemu: check-qemu-version $K/kernel $(FS_IMAGE)
 	$(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv

@@ -27,18 +27,11 @@ main(int argc, char *argv[])
   printf("inode %d: type %d nlink %d size %d\n",
          info.inum, info.type, info.nlink, info.size);
 
-  // Print direct block addresses in a 3-column table.
-  int rows = (NDIRECT + 2) / 3;
-  for (int row = 0; row < rows; row++) {
-    printf("  ");
-    for (int col = 0; col < 3; col++) {
-      int i = row + col * rows;
-      if (i < NDIRECT)
-        printf("addrs[%-2d] = %-5d ", i, info.addrs[i]);
-    }
-    printf("\n");
-  }
-  printf("  addrs[NDIRECT] = %d\n", info.addrs[NDIRECT]);
+  for (int i = 0; i < NDIRECT; i++)
+    printf("  addrs[%d] = %d\n", i, info.addrs[i]);
+  printf("  indirect = %d\n", info.addrs[NDIRECT]);
+  if (NDIRECT == 11)
+    printf("  double-indirect = %d\n", info.addrs[NDIRECT + 1]);
 
   exit(0);
 }

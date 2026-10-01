@@ -535,15 +535,18 @@ sys_istat(void)
   char path[MAXPATH];
   uint64 dst;
   struct inode *ip;
-  struct istat_info info;
+  struct istat_info info = {0};
 
   if (argstr(0, path, MAXPATH) < 0)
     return -1;
 
   argaddr(1, &dst);
 
-  if ((ip = namei(path)) == 0)
+  begin_op();
+  if ((ip = namei(path)) == 0) {
+    end_op();
     return -1;
+  }
 
   ilock(ip);
 
@@ -553,10 +556,11 @@ sys_istat(void)
   info.nlink = ip->nlink;
   info.size = ip->size;
 
-  for (int i = 0; i < 13; i++)
-    info.addrs[i] = (i < NDIRECT + 1) ? ip->addrs[i] : 0;
+  for (int i = 0; i < NELEM(ip->addrs); i++)
+    info.addrs[i] = ip->addrs[i];
 
   iunlockput(ip);
+  end_op();
 
   if (copyout(myproc()->pagetable, myproc()->sz, dst,
               (char *)&info, sizeof(info)) < 0)
@@ -574,12 +578,16 @@ sys_iprint(void)
   if (argstr(0, path, MAXPATH) < 0)
     return -1;
 
-  if ((ip = namei(path)) == 0)
+  begin_op();
+  if ((ip = namei(path)) == 0) {
+    end_op();
     return -1;
+  }
 
   ilock(ip);
   itreeprint(ip);
   iunlockput(ip);
+  end_op();
 
   return 0;
 }

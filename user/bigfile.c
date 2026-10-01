@@ -1,51 +1,19 @@
-#include "kernel/types.h"
-#include "kernel/stat.h"
-#include "kernel/fs.h"
-#include "kernel/fcntl.h"
-#include "user/user.h"
-
-#define MAX_BLOCKS 65803
-#define WRITE_BLOCKS 32
-
-char buf[WRITE_BLOCKS * BSIZE];
-
-int
-main(void)
-{
-  int fd;
-  int blocks = 0;
-
-  memset(buf, 'B', sizeof(buf));
-
-  fd = open("maxfile", O_CREATE | O_WRONLY);
-  if(fd < 0){
-    printf("bigfile: open failed\n");
-    exit(1);
+#include "user/fs_test.h"
+int main(void) {
+  makefile("fst_max.tmp", 65803, 19);
+  verify("fst_max.tmp", 65803, 19, 0, 0);
+  int fd = open("fst_max.tmp", O_RDWR);
+  check(fd >= 0, "open maximum file");
+  uint left = 65803U * BSIZE;
+  while (left) {
+    uint n = left > sizeof(fs_buffer) ? sizeof(fs_buffer) : left;
+    check(read(fd, fs_buffer, n) == n, "advance to maximum EOF");
+    left -= n;
   }
-
-  while(blocks + WRITE_BLOCKS <= MAX_BLOCKS){
-    if(write(fd, buf, sizeof(buf)) != sizeof(buf)){
-      printf("bigfile: write failed at block %d\n", blocks);
-      close(fd);
-      exit(1);
-    }
-    blocks += WRITE_BLOCKS;
-
-  }
-
-  while(blocks < MAX_BLOCKS){
-    if(write(fd, buf, BSIZE) != BSIZE){
-      printf("bigfile: final write failed at block %d\n", blocks);
-      close(fd);
-      exit(1);
-    }
-    blocks++;
-  }
-
-  close(fd);
-
-  printf("bigfile: created %d blocks\n", blocks);
-  printf("expected size: %d bytes\n", MAX_BLOCKS * BSIZE);
-
+  check(write(fd, fs_buffer, 1) < 1, "reject write past MAXFILE");
+  check(close(fd) == 0, "close maximum file");
+  verify("fst_max.tmp", 65803, 19, 0, 0);
+  check(unlink("fst_max.tmp") == 0, "reclaim maximum file");
+  printf("bigfile: passed\n");
   exit(0);
 }
