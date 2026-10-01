@@ -8,7 +8,7 @@
 #ifndef CLONE_OFF
 
 ushort brefget(uint dev, uint b);
-void   brefset(uint dev, uint b, ushort n);
+void brefset(uint dev, uint b, ushort n);
 ushort brefinc(uint dev, uint b);
 ushort brefdec(uint dev, uint b);
 

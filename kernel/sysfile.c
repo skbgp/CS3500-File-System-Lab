@@ -562,8 +562,8 @@ sys_istat(void)
   iunlockput(ip);
   end_op();
 
-  if (copyout(myproc()->pagetable, myproc()->sz, dst,
-              (char *)&info, sizeof(info)) < 0)
+  if (copyout(myproc()->pagetable, myproc()->sz, dst, (char *)&info,
+              sizeof(info)) < 0)
     return -1;
 
   return 0;
