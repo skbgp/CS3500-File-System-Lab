@@ -1,4 +1,4 @@
-# CS3500 Operating Systems — Lab 7: File System
+# CS3500 Operating Systems - Lab 7: File System
 
 **Release:** 12 October 2026 · **Due:** 1 November 2026, 11:59 PM IST
 
