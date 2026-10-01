@@ -18,14 +18,15 @@ main(int argc, char *argv[])
     exit(1);
   }
 
-  printf("superblock: size %d nblocks %d ninodes %d nlog %d\n",
-         info.sb.size, info.sb.nblocks, info.sb.ninodes, info.sb.nlog);
+  printf("superblock: size %d nblocks %d ninodes %d nlog %d\n", info.sb.size,
+         info.sb.nblocks, info.sb.ninodes, info.sb.nlog);
   printf("            logstart %d inodestart %d bmapstart %d refstart %d\n",
-         info.sb.logstart, info.sb.inodestart, info.sb.bmapstart, info.sb.refstart);
+         info.sb.logstart, info.sb.inodestart, info.sb.bmapstart,
+         info.sb.refstart);
   printf("\n");
 
-  printf("inode %d: type %d nlink %d size %d\n",
-         info.inum, info.type, info.nlink, info.size);
+  printf("inode %d: type %d nlink %d size %d\n", info.inum, info.type,
+         info.nlink, info.size);
 
   for (int i = 0; i < NDIRECT; i++)
     printf("  addrs[%d] = %d\n", i, info.addrs[i]);

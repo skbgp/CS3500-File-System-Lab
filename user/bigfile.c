@@ -1,5 +1,7 @@
 #include "user/fs_test.h"
-int main(void) {
+int
+main(void)
+{
   makefile("fst_max.tmp", 65803, 19);
   verify("fst_max.tmp", 65803, 19, 0, 0);
   int fd = open("fst_max.tmp", O_RDWR);

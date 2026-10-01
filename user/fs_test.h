@@ -8,7 +8,10 @@
 #include "kernel/syscall.h"
 #include "user/user.h"
 
-struct patch { uint offset; uchar value; };
+struct patch {
+  uint offset;
+  uchar value;
+};
 static char fs_buffer[8 * BSIZE];
 
 static inline void
@@ -38,7 +41,8 @@ makefile(const char *name, uint blocks, uint seed)
   check(fd >= 0, "create test file");
   for (uint first = 0; first < blocks;) {
     uint n = blocks - first;
-    if (n > 8) n = 8;
+    if (n > 8)
+      n = 8;
     for (uint b = 0; b < n; b++)
       for (uint j = 0; j < BSIZE; j++)
         fs_buffer[b * BSIZE + j] = pattern(first + b, j, seed);
@@ -56,14 +60,16 @@ verifyfd(int fd, uint blocks, uint seed, const struct patch *patches, int np)
         "exact file size");
   for (uint first = 0; first < blocks;) {
     uint n = blocks - first;
-    if (n > 8) n = 8;
+    if (n > 8)
+      n = 8;
     check(read(fd, fs_buffer, n * BSIZE) == n * BSIZE, "read full test data");
     for (uint b = 0; b < n; b++) {
       for (uint j = 0; j < BSIZE; j++) {
         uint off = (first + b) * BSIZE + j;
         uchar want = pattern(first + b, j, seed);
         for (int k = 0; k < np; k++)
-          if (patches[k].offset == off) want = patches[k].value;
+          if (patches[k].offset == off)
+            want = patches[k].value;
         check((uchar)fs_buffer[b * BSIZE + j] == want, "file contents differ");
       }
     }
@@ -73,8 +79,8 @@ verifyfd(int fd, uint blocks, uint seed, const struct patch *patches, int np)
 }
 
 static inline void
-verify(const char *name, uint blocks, uint seed,
-       const struct patch *patches, int np)
+verify(const char *name, uint blocks, uint seed, const struct patch *patches,
+       int np)
 {
   int fd = open(name, O_RDONLY);
   check(fd >= 0, "open for verification");

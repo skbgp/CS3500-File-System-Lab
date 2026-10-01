@@ -1,5 +1,7 @@
 #include "user/fs_test.h"
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv)
+{
   check(argc == 2, "itreetest requires block count");
   int n = atoi(argv[1]);
   check(n == 3 || n == 525, "supported tree fixture size");

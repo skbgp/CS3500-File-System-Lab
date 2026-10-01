@@ -1,5 +1,7 @@
 #include "user/fs_test.h"
-int main(void) {
+int
+main(void)
+{
   for (int i = 0; i < 4; i++) {
     makefile("fst_trunc.tmp", 525, i + 1);
     verify("fst_trunc.tmp", 525, i + 1, 0, 0);

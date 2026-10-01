@@ -15,19 +15,19 @@ main(void)
   unlink("loop2");
 
   // Create a symlink cycle: loop1 -> loop2 -> loop1
-  if(symlink("loop2", "loop1") < 0){
+  if (symlink("loop2", "loop1") < 0) {
     printf("symlinkloop: symlink loop1 failed\n");
     exit(1);
   }
 
-  if(symlink("loop1", "loop2") < 0){
+  if (symlink("loop1", "loop2") < 0) {
     printf("symlinkloop: symlink loop2 failed\n");
     exit(1);
   }
 
   // Opening a cyclic symlink must fail (not hang or panic).
   fd = open("loop1", O_RDONLY);
-  if(fd >= 0){
+  if (fd >= 0) {
     printf("symlinkloop: open loop should have failed\n");
     close(fd);
     exit(1);
@@ -41,5 +41,10 @@ main(void)
 }
 
 #else
-int main(void) { fprintf(2, "symlink support not implemented\n"); exit(1); }
+int
+main(void)
+{
+  fprintf(2, "symlink support not implemented\n");
+  exit(1);
+}
 #endif

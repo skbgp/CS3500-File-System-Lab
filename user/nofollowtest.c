@@ -17,7 +17,7 @@ main(void)
   unlink("s1");
 
   fd = open("target", O_CREATE | O_WRONLY);
-  if(fd < 0){
+  if (fd < 0) {
     printf("target create failed\n");
     exit(1);
   }
@@ -25,13 +25,13 @@ main(void)
   write(fd, "hello", 5);
   close(fd);
 
-  if(symlink("target", "s1") < 0){
+  if (symlink("target", "s1") < 0) {
     printf("symlink failed\n");
     exit(1);
   }
 
   fd = open("s1", O_RDONLY | O_NOFOLLOW);
-  if(fd < 0){
+  if (fd < 0) {
     printf("O_NOFOLLOW open failed\n");
     exit(1);
   }
@@ -39,14 +39,14 @@ main(void)
   n = read(fd, buf, sizeof(buf) - 1);
   close(fd);
 
-  if(n != 7){
+  if (n != 7) {
     printf("wrong symlink size: %d\n", n);
     exit(1);
   }
 
   buf[n] = 0;
 
-  if(strcmp(buf, "target") != 0){
+  if (strcmp(buf, "target") != 0) {
     printf("wrong symlink contents: %s\n", buf);
     exit(1);
   }
@@ -59,5 +59,10 @@ main(void)
 }
 
 #else
-int main(void) { fprintf(2, "symlink support not implemented\n"); exit(1); }
+int
+main(void)
+{
+  fprintf(2, "symlink support not implemented\n");
+  exit(1);
+}
 #endif
