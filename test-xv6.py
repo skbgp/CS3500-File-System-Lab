@@ -89,6 +89,8 @@ class QEMU(object):
 
     def error(self, *regexps):
         print("FAIL: match failed", regexps)
+        print("Recent xv6 output:")
+        print(self.output[-4000:])
         self.save_output()
         self.stop()
         sys.exit(1)
