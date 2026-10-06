@@ -4,7 +4,7 @@ main(int argc, char **argv)
 {
   check(argc == 2, "itreetest requires block count");
   int n = atoi(argv[1]);
-  check(n == 3 || n == 525, "supported tree fixture size");
+  check(n >= 0 && n <= 779, "supported tree fixture size");
   makefile("fst_tree.tmp", n, 11);
   verify("fst_tree.tmp", n, 11, 0, 0);
   printf("\nTREE_BEGIN\n");

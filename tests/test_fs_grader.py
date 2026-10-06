@@ -203,6 +203,47 @@ class GraderTests(unittest.TestCase):
             data = json.loads((Path(tmp) / "grade-results.json").read_text())
             self.assertEqual(data["score"], 10)
 
+    def test_subtest_budgets_match_case_totals(self):
+        for case in grader.PUBLIC:
+            if case.name in grader.PUBLIC_PARTS:
+                self.assertEqual(sum(p.points for p in grader.PUBLIC_PARTS[case.name]), case.points)
+
+    def test_independent_parts_award_six_of_ten_and_continue(self):
+        visited = []
+        def run(part):
+            visited.append(part.name)
+            if part.name == "direct_3":
+                raise grader.TestError("wrong tree")
+        with tempfile.TemporaryDirectory() as tmp, patch.object(grader, "run_case", side_effect=run), \
+             contextlib.redirect_stdout(io.StringIO()):
+            path = Path(tmp) / "result.json"
+            status = grader.main(["--only", "tree_direct", "--json", str(path)])
+            report = json.loads(path.read_text())
+        self.assertEqual(status, 1)
+        self.assertEqual(report["score"], 6)
+        self.assertEqual(visited, ["direct_0", "direct_3", "direct_11"])
+        self.assertEqual([p["earned"] for p in report["results"][0]["subtests"]], [2, 0, 4])
+
+    def test_completed_stage_survives_later_kernel_panic(self):
+        fake = unittest.mock.MagicMock()
+        disk = fake.return_value.__enter__.return_value
+        disk.allocated.return_value = set()
+        with patch.object(grader, "Image", fake), patch.object(grader, "build"), \
+             patch.object(grader, "active_inodes", return_value=set()), \
+             patch.object(grader, "run_guest", side_effect=grader.TestError(
+                 "kernel panic", "FS_STAGE max_write\n")):
+            result = grader.grade_case(next(c for c in grader.PUBLIC if c.name == "large_maximum"))
+        self.assertEqual(result["earned"], 10)
+        self.assertFalse(result["passed"])
+
+    def test_long_case_prints_notice_and_score(self):
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(output), \
+             patch.object(grader, "run_case"):
+            grader.main(["--only", "regression", "--json", str(Path(tmp) / "result.json")])
+        self.assertIn("This may take a few minutes.", output.getvalue())
+        self.assertIn("regression: PASS (5/5)", output.getvalue())
+
     def test_build_failure_is_not_ignored(self):
         failed = subprocess.CompletedProcess([], 2, stdout="compiler failed")
         with patch.object(grader.subprocess, "run", return_value=failed):

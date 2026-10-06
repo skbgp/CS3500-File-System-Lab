@@ -35,6 +35,8 @@ python3 grade-lab-fs --baseline
 ```
 
 The grader prints each case's result and marks, and saves details in `grade-results.json`.
+Cases with several checks award marks for each passed subtest, so a failed
+case can still earn partial marks. Long cases print a short notice before running.
 The starter passes `usertests -q`; feature tests fail until the required
 features are implemented. After completing the lab, run `make grade` from the
 container shell. The public suite includes symlink validation, concurrent

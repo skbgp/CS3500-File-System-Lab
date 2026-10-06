@@ -37,6 +37,7 @@ main(void)
       close(fd);
     check(fd == -1, "failed creation leaves no directory entry");
   }
+  printf("FS_STAGE full_reject\n");
   for (int i = 0; i < count; i++)
     check(unlink(files[i]) == 0, "remove disk-filling file");
   check(unlink("last") == 0, "remove final filling file");

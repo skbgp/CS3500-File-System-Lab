@@ -9,6 +9,7 @@ import re
 import secrets
 import selectors
 import signal
+import struct
 import subprocess
 import tempfile
 import time
@@ -44,8 +45,27 @@ PRIVATE = (
     Case("private_cycle", 10, "symlinkloop", "symlinkloop: passed", "reclaim"),
 )
 
+PUBLIC_PARTS = {
+    "tree_direct": tuple(Case(f"direct_{n}", p, f"itreetest {n}", check="tree")
+                         for n, p in ((0, 2), (3, 4), (11, 4))),
+    "tree_indirect": tuple(Case(f"tree_{n}", p, f"itreetest {n}", check="tree")
+                           for n, p in ((12, 3), (267, 3), (268, 2), (525, 2))),
+    "large_boundaries": tuple(Case(f"data_{n}", 5, f"fssubtest data {n}",
+                                  "fssubtest: passed", "reclaim") for n in (11, 267, 525)),
+    "truncation": tuple(Case(name, 5, f"fssubtest trunc {mode}",
+                            "fssubtest: passed", "reclaim")
+                        for mode, name in enumerate(("truncate", "unlink_open", "repeat_cycles"))),
+    "symlinks": tuple(Case(name, p, f"fssubtest {mode}", "fssubtest: passed", "reclaim")
+                      for name, mode, p in (("basic", "basic", 5), ("relative", "relative", 5),
+                                            ("chains", "chains", 4), ("nofollow", "flags", 3),
+                                            ("validation", "validation", 3))),
+}
+
 class TestError(RuntimeError):
-    pass
+    def __init__(self, message, output=""):
+        super().__init__(message)
+        self.output = output
+
 
 def stop_process(proc):
     """Kill the make/QEMU process group, including children after make exits."""
@@ -88,12 +108,12 @@ def run_guest(image, command, timeout):
                     if chunk:
                         output.extend(chunk)
                         if len(output) > MAX_OUTPUT:
-                            raise TestError("guest output limit exceeded")
+                            raise TestError("guest output limit exceeded", output.decode(errors="replace"))
                     elif proc.poll() is not None:
-                        raise TestError("QEMU exited before reporting a test result")
+                        raise TestError("QEMU exited before reporting a test result", output.decode(errors="replace"))
                 text = output.decode("utf-8", errors="replace").replace("\r", "")
                 if re.search(r"(?:^|\n)panic:", text):
-                    raise TestError("kernel panic\n" + text[-2000:])
+                    raise TestError("kernel panic\n" + text[-2000:], text)
                 if not sent and re.search(r"(?:^|\n)\$ $", text):
                     payload = f"labrun {token} {command}\n".encode()
                     proc.stdin.write(payload)
@@ -103,9 +123,10 @@ def run_guest(image, command, timeout):
                 if result:
                     return int(result.group(1)), text
                 if proc.poll() is not None:
-                    raise TestError("QEMU exited before reporting a test result\n" + text[-2000:])
+                    raise TestError("QEMU exited before reporting a test result\n" + text[-2000:], text)
             stage = "test" if sent else "boot"
-            raise TestError(f"{stage} timed out\n" + output.decode(errors="replace")[-2000:])
+            raise TestError(f"{stage} timed out\n" + output.decode(errors="replace")[-2000:],
+                            output.decode(errors="replace"))
         finally:
             stop_process(proc)
 
@@ -169,6 +190,75 @@ def run_case(case):
             raise TestError(f"guest exit status {status}\n" + output[-2500:])
         validate(case, output, image, before, inodes)
 
+def assessment(name, points, passed, detail=""):
+    return dict(name=name, points=points, earned=points if passed else 0,
+                passed=passed, detail=detail)
+
+
+def summarize(parts):
+    return dict(earned=sum(p["earned"] for p in parts),
+                passed=all(p["passed"] for p in parts), subtests=parts,
+                detail="; ".join(p["name"] + ": " + p["detail"].splitlines()[0]
+                                 for p in parts if not p["passed"] and p["detail"]))
+
+
+def score_parts(parts, runner):
+    results = []
+    for part in parts:
+        try:
+            runner(part)
+            result = assessment(part.name, part.points, True)
+        except (TestError, ImageError, OSError, ValueError, struct.error, OverflowError, subprocess.SubprocessError) as exc:
+            result = assessment(part.name, part.points, False, str(exc))
+        results.append(result)
+    return summarize(results)
+
+
+def score_stages(case):
+    stages = (("max_write", 10), ("max_read", 5), ("max_limit", 2)) if case.name == "large_maximum" else (("full_reject", 3),)
+    cleanup_points = case.points - sum(p for _, p in stages)
+    with tempfile.TemporaryDirectory(prefix="cs3500-grade-") as tmp:
+        image = Path(tmp) / "fs.img"
+        build(image)
+        if case.name == "symlink_failure":
+            prepare_full_disk(image)
+        with Image(image) as disk:
+            before, inodes = disk.allocated(), active_inodes(disk)
+        detail, status = "", -1
+        try:
+            status, output = run_guest(image, case.command, case.timeout)
+            if status != 0:
+                detail = f"guest exit status {status}\n" + output[-2500:]
+        except TestError as exc:
+            output, detail = exc.output, str(exc)
+        results = []
+        last = -1
+        prior_valid = True
+        for name, points in stages:
+            hits = list(re.finditer(r"^FS_STAGE " + re.escape(name) + r"$", output, re.M))
+            valid = prior_valid and len(hits) == 1 and hits[0].start() > last
+            prior_valid = valid
+            if valid:
+                last = hits[0].start()
+            results.append(assessment(name, points, valid, "" if valid else detail or "stage not completed"))
+        try:
+            require(status == 0, detail or "guest did not complete")
+            validate(case, output, image, before, inodes)
+            results.append(assessment("cleanup", cleanup_points, True))
+        except (ImageError, TestError) as exc:
+            results.append(assessment("cleanup", cleanup_points, False, str(exc)))
+        return summarize(results)
+
+
+def grade_case(case):
+    if case.name in PUBLIC_PARTS:
+        return score_parts(PUBLIC_PARTS[case.name], run_case)
+    if case.name in ("large_maximum", "symlink_failure"):
+        return score_stages(case)
+    run_case(case)
+    return summarize([assessment(case.name, case.points, True)])
+
+
 def main(argv=None, private=False):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--list", action="store_true", help="list available cases")
@@ -196,18 +286,24 @@ def main(argv=None, private=False):
     results = []
     for case in cases:
         start = time.monotonic()
-        print(f"{case.name}: ", end="", flush=True)
+        if case.timeout >= 1200:
+            print(f"{case.name}: running. This may take a few minutes.", flush=True)
+        else:
+            print(f"{case.name}: ", end="", flush=True)
         try:
-            run_case(case)
-            ok, detail = True, ""
+            result = grade_case(case)
+            ok, detail = result["passed"], result["detail"]
         except (TestError, ImageError, OSError, subprocess.SubprocessError) as exc:
             ok, detail = False, str(exc)
+            result = dict(earned=0, subtests=[])
         elapsed = round(time.monotonic() - start, 2)
         results.append(dict(name=case.name, passed=ok, points=case.points,
-                            seconds=elapsed, detail=detail))
+                            seconds=elapsed, detail=detail, earned=result["earned"],
+                            subtests=result["subtests"]))
         reason = " (" + detail.splitlines()[0][:160] + ")" if detail else ""
-        print(f"{'PASS' if ok else 'FAIL'} ({case.points if ok else 0}/{case.points})" + reason, flush=True)
-    score = sum(r["points"] for r in results if r["passed"])
+        prefix = case.name + ": " if case.timeout >= 1200 else ""
+        print(prefix + f"{'PASS' if ok else 'FAIL'} ({result['earned']}/{case.points})" + reason, flush=True)
+    score = sum(r["earned"] for r in results)
     total = sum(r["points"] for r in results)
     passed = bool(results) and all(r["passed"] for r in results)
     report = dict(score=score, total=total, passed=passed, partial=partial, results=results)

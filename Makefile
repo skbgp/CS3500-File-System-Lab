@@ -163,7 +163,8 @@ UPROGS=\
 	$U/_nofollowtest\
 	$U/_symlinkloop\
 	$U/_symlink\
-	$U/_symlinkfail
+	$U/_symlinkfail\
+	$U/_fssubtest
 
 $(FS_IMAGE): mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs $@ README $(UPROGS)
