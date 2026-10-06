@@ -1,13 +1,13 @@
-# CS3500 Operating Systems - Lab 7: File System
+# CS3500 Lab 7: File System
 
-**Release:** 12 October 2026 · **Due:** 1 November 2026, 11:59 PM IST
+Release: 12 October 2026  
+Due: 1 November 2026, 11:59 PM IST
 
-The lab covers inode inspection, block-tree printing, large files, and symbolic
-links. Relative link targets resolve from the link's containing directory.
-Copy-on-write file cloning is optional and ungraded. See the handout on Moodle
-for the full requirements.
+Follow the handout on Moodle for the tasks and submission requirements.
 
-## Start
+## Setup
+
+Start Docker Desktop, then run:
 
 ```sh
 git clone --branch cs3500-filesystem-starter https://github.com/skbgp/CS3500-File-System-Lab.git
@@ -17,44 +17,27 @@ docker run --rm -it --tmpfs /tmp -v "$PWD":/home/xv6-labs \
 make qemu
 ```
 
-Run these commands in order. `"$PWD"` is the cloned directory on your computer;
-`/home/xv6-labs` is its location inside the container.
+`$PWD` is your cloned directory; `/home/xv6-labs` is where Docker mounts it.
+Leave `CLONE_OFF` defined for the required tasks.
 
-The `--tmpfs /tmp` option supplies the temporary directory needed by the
-build tools and grader in this image.
+## Testing
 
-Docker Desktop must be running. A local RISC-V toolchain and QEMU can also run
-`make qemu` from the repository root.
-
-## Tests
-
-In the container shell, check the starter before making changes:
+Exit QEMU before running these commands in the container shell:
 
 ```sh
-python3 grade-lab-fs --baseline
+python3 grade-lab-fs --list
+python3 grade-lab-fs --only large_boundaries
+make grade
 ```
 
-The grader prints each case's result and marks, and saves details in `grade-results.json`.
-Cases with several checks award marks for each passed subtest, so a failed
-case can still earn partial marks. Long cases print a short notice before running.
-The starter passes `usertests -q`; feature tests fail until the required
-features are implemented. After completing the lab, run `make grade` from the
-container shell. The public suite includes symlink validation, concurrent
-operations, and failed creation on a full disk. Each case uses a fresh image.
-The full-disk case starts with a nearly full image to avoid a long setup. Run
-`python3 grade-lab-fs --only symlink_failure` to check it separately.
-
-Inside xv6, run `bigfiletest`, `bigfile`, `trunctest`, `symlinktest`,
-`nofollowtest`, and `usertests -q`. Use `itreetest 3` and
-`itreetest 525` to inspect block trees. They leave `fst_tree.tmp` for inspection;
-remove it when finished. The `symlink target path` command becomes available
-once the syscall is implemented.
+Use selected cases while working and the full grader before submission.
+Feature tests fail until implemented. A full run may take 15–25 minutes.
+The grader shows marks for each case and saves subtest results and failure
+details in `grade-results.json`.
 
 ## Submission
 
-Commit the required source files, written answers, references, time spent, and
-any required prompt logs before running `make zipball` from your host terminal.
-The Docker image does not include Git. If `make` is unavailable on the host, use
-`git archive --format=zip --prefix=lab/ -o lab.zip HEAD` instead. It archives `HEAD`;
-uncommitted changes are not included. Submit the archive on Moodle as directed
-in the handout.
+In your host terminal, commit your source changes, `answers-fs.txt`, `time.txt`,
+`reference.txt`, and any required prompt logs. Run `make zipball`, then rename
+`lab.zip` to your roll number, for example `CS24B046.zip`, and upload it to Moodle.
+Only committed files are included. Do not submit binaries or `fs.img`.
