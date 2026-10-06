@@ -27,7 +27,8 @@ class QEMU(object):
         q = ["make", "qemu"]
         self.proc = subprocess.Popen(q, stdin=subprocess.PIPE,
                                       stdout=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT)
+                                      stderr=subprocess.STDOUT,
+                                      start_new_session=True)
         os.set_blocking(self.proc.stdout.fileno(), False)
         self.output = ""
         self.outbytes = bytearray()
@@ -35,17 +36,11 @@ class QEMU(object):
         time.sleep(1)
 
     def reset_fs(self):
-        try:
-            run(["rm", "-f", "fs.img"], check=True)
-            run(["make", "fs.img"], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Command failed with exit code {e.returncode}")
+        run(["rm", "-f", "fs.img"], check=True)
+        run(["make", "fs.img"], check=True)
 
     def build_xv6(self):
-        try:
-            run(["make", "kernel/kernel"], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Command failed with exit code {e.returncode}")
+        run(["make", "kernel/kernel"], check=True)
 
     def save_output(self):
       try:
@@ -62,16 +57,28 @@ class QEMU(object):
         self.proc.stdin.flush()
         
     def crash(self):
-        ps = run(['ps', '-opid', '--no-headers', '--ppid', str(self.proc.pid)], stdout=subprocess.PIPE, encoding='utf8')
-        kids = [int(line) for line in ps.stdout.splitlines()]
-        if len(kids) == 0:
-            print("no qemu")
-            sys.exit(1)
-        print("kill", kids[0])
-        os.kill(kids[0], signal.SIGKILL)
+        if self.proc.poll() is not None:
+            self.error("QEMU exited before the crash")
+        print("kill QEMU process group", self.proc.pid)
+        os.killpg(self.proc.pid, signal.SIGKILL)
+        self.proc.wait(timeout=5)
 
     def stop(self):
-        self.proc.terminate()
+        try:
+            os.killpg(self.proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            self.proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            pass
+        try:
+            os.killpg(self.proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        self.proc.wait(timeout=3)
+        self.proc.stdin.close()
+        self.proc.stdout.close()
 
     def read(self):
         while True:
@@ -125,6 +132,10 @@ class QEMU(object):
             if timeleft < 0:
                 self.error(*regexps)
             self.read()
+            if re.search(r"(?:^|\n)panic:", self.output):
+                self.error("kernel panic")
+            if self.proc.poll() is not None:
+                self.error("QEMU exited before the expected output")
             if progress:
                 self.progress(progress)
             if self.match(*regexps, exit=False):

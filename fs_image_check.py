@@ -21,6 +21,7 @@ class Image:
     def __init__(self, path):
         self.file = open(path, "rb")
         try:
+            require(self.file.seek(0, 2) == 200000 * BSIZE, "wrong filesystem/image size")
             self.data = mmap.mmap(self.file.fileno(), 0, access=mmap.ACCESS_READ)
             fields = struct.unpack_from("<9I", self.data, BSIZE)
             (self.magic, self.size, self.nblocks, self.ninodes, self.nlog,
@@ -94,7 +95,7 @@ class Image:
         return {b for b in range(self.size)
                 if self.data[start + b // 8] & (1 << (b % 8))}
 
-    def audit(self):
+    def audit(self, check_refcounts=True):
         """Check immediate-pointer reference counts and bitmap, including metadata sharing."""
         refs = Counter()
         levels = {}
@@ -126,6 +127,8 @@ class Image:
         require(set(range(self.first)) <= allocated, "reserved block marked free")
         require(allocated - set(range(self.first)) == set(refs),
                 "leaked allocation or referenced block marked free")
+        if not check_refcounts:
+            return refs
         for b in range(self.first, self.size):
             actual = struct.unpack_from("<H", self.data, self.refstart * BSIZE + b * 2)[0]
             require(actual == refs[b], f"block {b}: reference count {actual}, expected {refs[b]}")
@@ -169,3 +172,81 @@ class Image:
             require(a["addrs"][11] != b["addrs"][11] and
                     a["addrs"][12] != b["addrs"][12], "shared pointer block was modified")
         self.audit()
+
+def prepare_full_disk(path, free_blocks=16):
+    """Reserve space with ordinary files before booting the failure test."""
+    with Image(path) as disk:
+        allocated = disk.allocated()
+        available = [b for b in range(disk.first, disk.size) if b not in allocated]
+        require(0 < free_blocks < len(available), "invalid free-space fixture")
+        empty_inodes = [n for n in range(1, disk.ninodes)
+                        if disk.inode(n)["type"] == 0]
+        root = disk.inode(1)
+        require(root["size"] == BSIZE, "fixture requires a one-block root")
+        directory = bytearray(disk.contents(root))
+        empty_entries = [off for off in range(0, BSIZE, 16)
+                         if struct.unpack_from("<H", directory, off)[0] == 0]
+        inode_start, bitmap_start = disk.inodestart, disk.bmapstart
+        root_block = root["addrs"][0]
+        size = disk.size
+    pointers, inodes = {}, []
+    cursor = 0
+    def allocate(pointer=False):
+        nonlocal cursor
+        block = available[cursor]
+        cursor += 1
+        allocated.add(block)
+        if pointer:
+            pointers[block] = [0] * 256
+        return block
+    while len(available) - cursor > free_blocks:
+        require(len(inodes) < min(len(empty_inodes), len(empty_entries)),
+                "not enough names or inodes for the full-disk fixture")
+        roots = [0] * 13
+        count = 0
+        while count < MAXFILE and len(available) - cursor > free_blocks:
+            if count < 11:
+                needed = 1
+            elif count < 267:
+                needed = 1 + (roots[11] == 0)
+            else:
+                outer = (count - 267) // 256
+                needed = 1 + (roots[12] == 0)
+                needed += roots[12] == 0 or pointers[roots[12]][outer] == 0
+            if len(available) - cursor - free_blocks < needed:
+                break
+            if count < 11:
+                roots[count] = allocate()
+            elif count < 267:
+                if roots[11] == 0:
+                    roots[11] = allocate(pointer=True)
+                pointers[roots[11]][count - 11] = allocate()
+            else:
+                outer, inner = divmod(count - 267, 256)
+                if roots[12] == 0:
+                    roots[12] = allocate(pointer=True)
+                if pointers[roots[12]][outer] == 0:
+                    pointers[roots[12]][outer] = allocate(pointer=True)
+                child = pointers[roots[12]][outer]
+                pointers[child][inner] = allocate()
+            count += 1
+        require(count > 0, "full-disk fixture made no progress")
+        number = empty_inodes[len(inodes)]
+        offset = empty_entries[len(inodes)]
+        name = f"fst_res{len(inodes)}.tmp".encode()
+        struct.pack_into("<H14s", directory, offset, number, name)
+        inodes.append((number, count, roots))
+    bitmap = bytearray(((size + BSIZE * 8 - 1) // (BSIZE * 8)) * BSIZE)
+    for b in allocated:
+        bitmap[b // 8] |= 1 << (b % 8)
+    with open(path, "r+b") as file:
+        for b, entries in pointers.items():
+            file.seek(b * BSIZE)
+            file.write(struct.pack("<256I", *entries))
+        for number, count, roots in inodes:
+            file.seek(inode_start * BSIZE + number * 64)
+            file.write(struct.pack("<4h14I", 2, 0, 0, 1, count * BSIZE, *roots))
+        file.seek(root_block * BSIZE)
+        file.write(directory)
+        file.seek(bitmap_start * BSIZE)
+        file.write(bitmap)

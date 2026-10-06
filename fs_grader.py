@@ -13,7 +13,7 @@ import subprocess
 import tempfile
 import time
 
-from fs_image_check import Image, ImageError, require
+from fs_image_check import Image, ImageError, require, prepare_full_disk
 
 ROOT = Path(__file__).resolve().parent
 MAX_OUTPUT = 32 * 1024 * 1024
@@ -33,7 +33,8 @@ PUBLIC = (
     Case("large_boundaries", 15, "bigfiletest", "bigfiletest: passed", "reclaim"),
     Case("large_maximum", 20, "bigfile", "bigfile: passed", "reclaim", 1200),
     Case("truncation", 15, "trunctest", "trunctest: passed", "reclaim"),
-    Case("symlinks", 25, "symlinktest", "symlinktest: passed", "reclaim"),
+    Case("symlinks", 20, "symlinktest", "symlinktest: passed", "reclaim"),
+    Case("symlink_failure", 5, "symlinkfail", "symlinkfail: passed", "reclaim", 300),
     Case("regression", 5, "usertests -q", "ALL TESTS PASSED", timeout=1200),
 )
 PRIVATE = (
@@ -159,6 +160,8 @@ def run_case(case):
     with tempfile.TemporaryDirectory(prefix="cs3500-grade-") as tmp:
         image = Path(tmp) / "fs.img"
         build(image)
+        if case.name == "symlink_failure":
+            prepare_full_disk(image)
         with Image(image) as disk:
             before, inodes = disk.allocated(), active_inodes(disk)
         status, output = run_guest(image, case.command, case.timeout)

@@ -1,6 +1,8 @@
+#include "kernel/syscall.h"
 #include "kernel/types.h"
 #include "user/user.h"
 
+#ifdef SYS_symlink
 int
 main(int argc, char *argv[])
 {
@@ -16,3 +18,12 @@ main(int argc, char *argv[])
 
   exit(0);
 }
+
+#else
+int
+main(void)
+{
+  fprintf(2, "symlink: syscall not implemented\n");
+  exit(1);
+}
+#endif

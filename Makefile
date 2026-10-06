@@ -63,7 +63,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
 # Deterministic builds.
-DETFLAGS = -ffile-prefix-map=$(CURDIR)=.
+DETFLAGS = "-ffile-prefix-map=$(CURDIR)=."
 
 CFLAGS = -Wall -Werror -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += $(DETFLAGS)
@@ -161,7 +161,9 @@ UPROGS=\
 	$U/_itreetest\
 	$U/_labrun\
 	$U/_nofollowtest\
-	$U/_symlinkloop
+	$U/_symlinkloop\
+	$U/_symlink\
+	$U/_symlinkfail
 
 $(FS_IMAGE): mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs $@ README $(UPROGS)
@@ -194,11 +196,11 @@ QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 grade:
 	python3 grade-lab-fs
 
-zipball: 
-	@git diff --name-only --diff-filter=M HEAD | while read f; do echo "M $$f"; done
-	@git ls-files --others --exclude-standard | while read f; do echo "?? $$f"; done
+zipball:
+	@git status --short
 	@echo ""
-	@read -p "Untracked files will not be handed in.  Continue? [y/N] " ans && [ "$$ans" = y ]
+	@echo "The archive contains HEAD only; uncommitted changes are excluded."
+	@read -p "Create lab.zip from HEAD? [y/N] " ans && [ "$$ans" = y ]
 	git archive --format=zip --prefix=lab/ -o lab.zip HEAD
 
 qemu: check-qemu-version $K/kernel $(FS_IMAGE)
@@ -221,6 +223,6 @@ check-qemu-version:
 		exit 1; \
 	fi
 
-.PHONY: fmt
+.PHONY: clean grade zipball qemu qemu-gdb check-qemu-version fmt
 fmt:
 	clang-format -i $(wildcard kernel/*.[ch] user/*.[ch] mkfs/*.c)

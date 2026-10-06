@@ -1,6 +1,7 @@
 // bref.h -- block reference counts.
 //
-// Remove CLONE_OFF to enable clone support.
+// The graded lab leaves CLONE_OFF defined.
+// Removing it enables reference-count checks; cloning still needs to be implemented.
 // While defined, balloc/bfree skip reference counts entirely.
 
 #define CLONE_OFF

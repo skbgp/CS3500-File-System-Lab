@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import fs_grader as grader
-from fs_image_check import Image, ImageError
+from fs_image_check import Image, ImageError, prepare_full_disk
 
 def fixture(path):
     """Create a valid shared 525-block tree independently of the kernel."""
@@ -77,6 +77,31 @@ class ImageTests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_full_disk_fixture_preserves_existing_files_and_leaves_space(self):
+        with Image(self.path) as image:
+            original = image.inode(2)
+        prepare_full_disk(self.path)
+        with Image(self.path) as image:
+            self.assertEqual(image.size - len(image.allocated()), 16)
+            image.audit(check_refcounts=False)
+            self.assertEqual(image.inode(2), original)
+            visited = set()
+            for i in range(3):
+                inode = image.lookup(f"fst_res{i}.tmp")
+                mapping = image.mapping(inode)
+                self.assertEqual(len(set(mapping)), len(mapping))
+                self.assertFalse(visited.intersection(mapping))
+                visited.update(mapping)
+                self.assertTrue(set(mapping) <= image.allocated())
+
+    def test_truncated_images_report_an_image_error(self):
+        for size in (0, 1024, 200000 * 1024 - 1):
+            with self.subTest(size=size):
+                with open(self.path, "wb") as f:
+                    f.truncate(size)
+                with self.assertRaisesRegex(ImageError, "image size"):
+                    Image(self.path)
 
     def test_recursive_counts_accept_valid_shared_tree(self):
         with Image(self.path) as image:
