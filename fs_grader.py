@@ -174,7 +174,8 @@ def main(argv=None, private=False):
     parser.add_argument("--list", action="store_true", help="list available cases")
     parser.add_argument("--only", help="comma-separated case names (partial run)")
     parser.add_argument("--baseline", action="store_true", help="run only stock regression checks")
-    parser.add_argument("--json", type=Path, help="write machine-readable results")
+    parser.add_argument("--json", type=Path, default=ROOT / "grade-results.json",
+                        help="results file (default: grade-results.json)")
     options = parser.parse_args(argv)
     cases = PRIVATE if private else PUBLIC
     if options.baseline and (private or options.only):
@@ -192,13 +193,10 @@ def main(argv=None, private=False):
         for case in cases:
             print(f"{case.name}: {case.points} points; {case.command}")
         return 0
-    print("CS3500 Lab 7 " + ("private" if private else "public") + " tests", flush=True)
-    if partial:
-        print("PARTIAL RUN: this does not certify the complete assignment.", flush=True)
     results = []
     for case in cases:
         start = time.monotonic()
-        print(f"{case.name} ...", flush=True)
+        print(f"{case.name}: ", end="", flush=True)
         try:
             run_case(case)
             ok, detail = True, ""
@@ -207,17 +205,20 @@ def main(argv=None, private=False):
         elapsed = round(time.monotonic() - start, 2)
         results.append(dict(name=case.name, passed=ok, points=case.points,
                             seconds=elapsed, detail=detail))
-        print(f"  {'PASS' if ok else 'FAIL'} ({elapsed}s)", flush=True)
-        if detail:
-            print(detail, flush=True)
+        reason = " (" + detail.splitlines()[0][:160] + ")" if detail else ""
+        print(("PASS" if ok else "FAIL") + reason, flush=True)
     score = sum(r["points"] for r in results if r["passed"])
     total = sum(r["points"] for r in results)
     passed = bool(results) and all(r["passed"] for r in results)
     report = dict(score=score, total=total, passed=passed, partial=partial, results=results)
-    if options.json:
-        options.json.write_text(json.dumps(report, indent=2) + "\n")
-    print(f"Score: {score}/{total}", flush=True)
-    print("All selected tests passed." if passed else "Some tests failed.", flush=True)
+    options.json.parent.mkdir(parents=True, exist_ok=True)
+    options.json.write_text(json.dumps(report, indent=2) + "\n")
+    label = "Private" if private else "Public"
+    if partial:
+        label += " (selected)"
+    print(f"{label}: {score}/{total}", flush=True)
+    if not passed:
+        print(f"Details: {options.json}", flush=True)
     return 0 if passed else 1
 
 if __name__ == "__main__":

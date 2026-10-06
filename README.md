@@ -34,6 +34,7 @@ In the container shell, check the starter before making changes:
 python3 grade-lab-fs --baseline
 ```
 
+The grader prints one result per case and saves details in `grade-results.json`.
 The starter passes `usertests -q`; feature tests fail until the required
 features are implemented. After completing the lab, run `make grade` from the
 container shell. The public suite includes symlink validation, concurrent

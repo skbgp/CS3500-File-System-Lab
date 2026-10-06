@@ -35,3 +35,4 @@ user/usys.S
 # Grader outputs
 __pycache__/
 autograder_results/
+grade-results.json

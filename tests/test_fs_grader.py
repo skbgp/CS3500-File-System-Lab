@@ -197,8 +197,11 @@ class GraderTests(unittest.TestCase):
         self.assertTrue(data["partial"])
 
     def test_successful_cases_return_zero(self):
-        with contextlib.redirect_stdout(io.StringIO()), patch.object(grader, "run_case"):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(grader, "ROOT", Path(tmp)), \
+             contextlib.redirect_stdout(io.StringIO()), patch.object(grader, "run_case"):
             self.assertEqual(grader.main(["--only", "tree_direct"]), 0)
+            data = json.loads((Path(tmp) / "grade-results.json").read_text())
+            self.assertEqual(data["score"], 10)
 
     def test_build_failure_is_not_ignored(self):
         failed = subprocess.CompletedProcess([], 2, stdout="compiler failed")
