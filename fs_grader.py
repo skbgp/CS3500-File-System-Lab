@@ -206,7 +206,7 @@ def main(argv=None, private=False):
         results.append(dict(name=case.name, passed=ok, points=case.points,
                             seconds=elapsed, detail=detail))
         reason = " (" + detail.splitlines()[0][:160] + ")" if detail else ""
-        print(("PASS" if ok else "FAIL") + reason, flush=True)
+        print(f"{'PASS' if ok else 'FAIL'} ({case.points if ok else 0}/{case.points})" + reason, flush=True)
     score = sum(r["points"] for r in results if r["passed"])
     total = sum(r["points"] for r in results)
     passed = bool(results) and all(r["passed"] for r in results)
