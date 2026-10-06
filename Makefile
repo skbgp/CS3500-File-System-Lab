@@ -197,6 +197,7 @@ grade:
 	python3 grade-lab-fs
 
 zipball:
+	@command -v git >/dev/null 2>&1 || { echo "Run make zipball from a host terminal with Git installed."; exit 1; }
 	@git status --short
 	@echo ""
 	@echo "The archive contains HEAD only; uncommitted changes are excluded."

@@ -52,6 +52,8 @@ once the syscall is implemented.
 ## Submission
 
 Commit the required source files, written answers, references, time spent, and
-any required prompt logs before running `make zipball`. It archives `HEAD`;
+any required prompt logs before running `make zipball` from your host terminal.
+The Docker image does not include Git. If `make` is unavailable on the host, use
+`git archive --format=zip --prefix=lab/ -o lab.zip HEAD` instead. It archives `HEAD`;
 uncommitted changes are not included. Submit the archive on Moodle as directed
 in the handout.
